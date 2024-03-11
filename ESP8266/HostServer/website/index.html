@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #2f2f2f;
+            /* Set background color */
+            color: #fff;
+            /* Set text color to white */
+            font-family: Arial, sans-serif;
+            /* Specify font family */
+        }
+        
+        .button-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .button-73 {
+            margin: 10px;
+            border: 0;
+            line-height: 2.5;
+            padding: 2px 36px;
+            /* Increase padding for larger size */
+            font-size: 2rem;
+            /* Increase font size */
+            text-align: center;
+            color: #fff;
+            text-shadow: 1px 1px 1px #000;
+            border-radius: 10px;
+            background-color: rgba(220, 0, 0, 1);
+            background-image: linear-gradient(to top left, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2) 30%, rgba(0, 0, 0, 0));
+            box-shadow: inset 2px 2px 3px rgba(255, 255, 255, 0.6), inset -2px -2px 3px rgba(0, 0, 0, 0.6);
+        }
+        
+        .button-73:hover {
+            background-color: rgba(255, 0, 0, 1);
+        }
+        
+        .button-73:active {
+            box-shadow: inset -2px -2px 3px rgba(255, 255, 255, 0.6), inset 2px 2px 3px rgba(0, 0, 0, 0.6);
+        }
+        
+        .button-72 {
+            appearance: none;
+            background-color: #FFFFFF;
+            border-radius: 40em;
+            border-style: none;
+            box-shadow: #ADCFFF 0 -12px 6px inset;
+            box-sizing: border-box;
+            color: #000000;
+            cursor: pointer;
+            display: block;
+            font-family: -apple-system, sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: -.24px;
+            margin: 0;
+            outline: none;
+            padding: 1rem 1.3rem;
+            quotes: auto;
+            text-align: center;
+            text-decoration: none;
+            transition: all .15s;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            margin-bottom: 10px;
+            /* Add margin between buttons */
+        }
+        
+        .button-72:hover {
+            background-color: #FFC229;
+            box-shadow: #FF6314 0 -6px 8px inset;
+            transform: scale(1.125);
+        }
+        
+        .button-72:active {
+            transform: scale(1.025);
+        }
+    </style>
+    <title>Nikhil's Light Controler</title>
+</head>
+
+<body>
+    <div class="button-wrapper">
+        <button class="button-73" role="button" onclick="sendAction('white')">White Light</button>
+        <button class="button-73" role="button" onclick="sendAction('red')">Red Light</button>
+        <button class="button-73" role="button" onclick="sendAction('Lightoff')">LightOFF</button>
+    </div>
+
+    <script>
+        function sendAction(color) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    console.log("Action sent successfully");
+                }
+            };
+            xhttp.open("GET", "/button?color=" + color, true);
+            xhttp.send();
+        }
+    </script>
+</body>
+</html>
