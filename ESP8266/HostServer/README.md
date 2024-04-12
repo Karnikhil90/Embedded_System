@@ -41,7 +41,7 @@ For inquiries, please contact us via:
 - Email: [![Email](https://img.shields.io/badge/Email-nikhilbroo%40hotmail.com-blue)](mailto:nikhilbroo@hotmail.com)
 - Twitter: [![Twitter](https://img.shields.io/badge/Twitter-%40karnikhil-blue)](https://twitter.com/karnikhil90)
 - GitHub: [![GitHub](https://img.shields.io/badge/GitHub-%40Karnikhil90-green)](https://github.com/Karnikhil90)
-- LinkedIn: [![LinkedIn](https://img.shields.io/badge/LinkedIn-Nikhil%20Karmakar-blue)](https://www.linkedin.com/in/NikhilKarmakar/)
+- LinkedIn: [![LinkedIn](https://img.shields.io/badge/LinkedIn-Nikhil%20Karmakar-blue)](https://www.linkedin.com/in/karnikhil90/))
 
 ## License
 
