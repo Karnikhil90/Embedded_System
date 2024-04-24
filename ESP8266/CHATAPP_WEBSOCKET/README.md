@@ -1,7 +1,3 @@
-Certainly! Here's a draft for your `README.md` file:
-
----
-
 # ESP8266 Web Server with WebSocket
 
 This repository contains code for setting up a web-connected project using an ESP8266 microcontroller. The project includes functionalities commonly used in IoT (Internet of Things) applications, such as connecting to Wi-Fi, handling WebSocket communication, serving files from an SD card, synchronizing time via NTP, and acting as a web server.
@@ -45,7 +41,3 @@ This code is designed for educational purposes and can be extended for various I
 ## Known Issues
 
 The current implementation may encounter stack overflow errors when handling multiple users, especially more than two, on the ESP8266 web server. Efforts are ongoing to address this issue.
-
----
-
-Feel free to adjust the content as needed and add more sections or details according to your preferences!
