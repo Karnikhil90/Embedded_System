@@ -1,0 +1,174 @@
+<!-- 
+    This is System Monitoring Website using websockets.
+        $ the system is ESP8266 (nodemcu) its a wifi micorcontroller.
+        $ which have limited memory. For that reason I have to build this 
+
+        $ Host by the sever (my pc).
+    (*) It recives a json file by websocket connection and just print that data and also use event listeners
+            for time out. If no data is received more that 3 seconds then it will set the heap, stack and 
+            cpu frequency to 0.
+
+        Created by: Nikhil Karmakar , Contacts = @Karnikhil90 [Github, Twitter, LinkedIn]
+ -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Data Updates</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        .backgroundColor {
+            background-color: #2f2f2f;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 550px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
+        .data-container {
+            margin-top: px;
+        }
+        
+        .data-item {
+            color: white;
+            font-size: 2em;
+            background-color: #171717;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            font: "Hawaii 5-0, sans-serif";
+        }
+        
+        .wifi-connected {
+            color: green;
+        }
+        
+        .wifi-disconnected {
+            color: red;
+        }
+    </style>
+</head>
+
+<body class="backgroundColor body">
+    <div class="container backgroundColor">
+        <i id="wifiIcon" class="fa fa-wifi fa-2x wifi-disconnected"></i>
+        <h1 style="color: white;">Live CPU Monitoring</h1>
+
+        <div class="data-container">
+            <div id="heap" class="data-item">0</div>
+            <div id="stack" class="data-item">0</div>
+            <div id="cpu" class="data-item">0</div>
+        </div>
+
+        <p id="connectionStatus" class="wifi-disconnected">Disconnected</p>
+
+        <script>
+            const wifiIcon = document.getElementById('wifiIcon');
+            const connectionStatus = document.getElementById('connectionStatus');
+
+            let lastDataReceivedTime = Date.now(); // Variable to store the timestamp of the last data received
+
+            // Function to reset data to zero if no data received for 3 seconds
+            function resetDataIfNoUpdate() {
+                const currentTime = Date.now();
+                if (currentTime - lastDataReceivedTime >= 3000) { // Check if 3 seconds have elapsed
+                    // Update UI with zero values
+                    updateUI({
+                        heap: 0,
+                        stack: 0,
+                        cpu: 0
+                    });
+                }
+            }
+            const WS_ADDRESS = `ws://${window.location.hostname}:8081`
+            console.log(WS_ADDRESS);
+
+            // Function to establish WebSocket connection
+            function connectWebSocket() {
+                const socket = new WebSocket(WS_ADDRESS);
+
+                // Handle websocket connection events
+                socket.addEventListener('open', function(event) {
+                    // Reset last data received time
+                    lastDataReceivedTime = Date.now();
+                    // Update UI for connection status
+                    wifiIcon.classList.remove('wifi-disconnected');
+                    wifiIcon.classList.add('wifi-connected');
+                    connectionStatus.innerText = 'Connected';
+                    connectionStatus.classList.remove('wifi-disconnected');
+                    connectionStatus.classList.add('wifi-connected');
+                });
+
+                socket.addEventListener('close', function(event) {
+                    // Update UI for connection status
+                    wifiIcon.classList.remove('wifi-connected');
+                    wifiIcon.classList.add('wifi-disconnected');
+                    connectionStatus.innerText = 'Disconnected';
+                    connectionStatus.classList.remove('wifi-connected');
+                    connectionStatus.classList.add('wifi-disconnected');
+                });
+
+                socket.addEventListener('message', function(event) {
+                    // Reset last data received time
+                    lastDataReceivedTime = Date.now();
+
+                    console.log("Received data:", event.data); // Log received data before parsing
+                    console.log(typeof(event.data));
+
+                    try {
+                        const rawData = JSON.parse(event.data);
+                        console.log("Parsed data:", rawData); // Log parsed data
+                        console.log(typeof(rawData));
+                        // Modify and update UI with received data
+                        const modifiedData = {
+                            heap: rawData['heap'],
+                            stack: rawData['stack'],
+                            cpu: (rawData['cpu'] / 10).toFixed(2)
+                        };
+                        console.log(typeof(rawData['heap']));
+                        updateUI(modifiedData);
+                    } catch (error) {
+                        console.error("Error parsing data:", error); // Log any parsing errors
+                    }
+                });
+
+                // Call the function to start checking for data updates
+                setInterval(resetDataIfNoUpdate, 1000); // Check every second for no updates
+            }
+
+            // Call the function to establish WebSocket connection
+            connectWebSocket();
+
+            // Function to update UI with received data
+            function updateUI(data) {
+                // Make sure to use correct property names when accessing data
+                document.getElementById('heap').innerText = `Heap: ${data.heap}`; // Provide default value if property is undefined
+                document.getElementById('stack').innerText = `Stack: ${data.stack}`;
+                document.getElementById('cpu').innerText = `CPU: ${data.cpu}`;
+            }
+        </script>
+    </div>
+</body>
+
+</html>
