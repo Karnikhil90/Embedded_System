@@ -44,7 +44,7 @@ Pin Connections:
 WiFiUDP ntpUDP; // Declare WiFiUDP object
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 19800); // Universal Time -> IST(5:30)
 
-const char* ssid = "Airtel_Zeus";
+const char* ssid = "YourWifi";
 const char* password = "TheBestWifi";
 
 WebSocketsServer webSocket = WebSocketsServer(81);
