@@ -1,6 +1,6 @@
 /*
 Based on the provided .ino file, it seems you're attempting to build a basic 
-computer terminal using an ESP8266 microcontroller and an SD card module. Here's a
+ computer terminal using an ESP8266 microcontroller and an SD card module. Here's a
  breakdown of what you're trying to accomplish and an explanation of the functions included:
 
 1. Objective: Build a computer terminal capable of interacting with an SD card, allowing
@@ -10,34 +10,39 @@ computer terminal using an ESP8266 microcontroller and an SD card module. Here's
 2. Included Functions:
 
 Key functions include:
+  *   setup(): Initializes serial communication and SD card setup, displaying root directory contents.
+  *   sdCardSetup(): Checks if the SD card is connected.
+          Utility functions for string manipulation.
+  *   File system operations:  ls(), readFile(), createFile(), revmdir().
+  *   cmd(): Parses and executes user commands received via serial input.
+  *   loop(): Continuously processes user input to maintain interactivity.
+  *   WifiHostpot() & Wifi() : Is there to connect to wifi.
 
-*   setup(): Initializes serial communication and SD card setup, displaying root directory contents.
-*   sdCardSetup(): Checks if the SD card is connected.
-        Utility functions for string manipulation.
-*   File system operations: ShowRootDir(), openDir(), readFile(), createFile(), revmdir().
-*   cmd(): Parses and executes user commands received via serial input.
-*   loop(): Continuously processes user input to maintain interactivity.
-*   WifiHostpot() & Wifi() : Is there to connect to wifi.
-
-Overall, this code provides a foundation for building a simple computer terminal interface 
-with file system capabilities using an ESP8266 microcontroller and an SD card module. With 
-further development, additional features and functionalities can be added to enhance its usability
- and versatility.
+  Overall, this code provides a foundation for building a simple computer terminal interface 
+  with file system capabilities using an ESP8266 microcontroller and an SD card module. With 
+  further development, additional features and functionalities can be added to enhance its usability
+  and versatility.
  
-        Created by: Nikhil Karmakar , Contacts = @Karnikhil90 [Github, Twitter, LinkedIn]
+        @author Nikhil Karmakar , Contacts = @Karnikhil90 [Github, Twitter, LinkedIn]
+
   Today I did start this! :) {07-05-2024}
   Today I did 2nd commit this! :) {08-05-2024} : "add a lot of command features "
-
+  Today I added this but I had work on it since 9-05-2024 . I mean a lot time ago
+        But I'm in a trouble because of the stack and the 'cd' system command doest work properly
+        @bug {main problem} goBackDirectory() have the problem of changing the working directory
+        @bug sometime stack overflow & few other things 
 
 */
-
 #include <SD.h>
 #include <ESP8266WiFi.h> // Include the ESP8266WiFi library for ESP8266
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+// #include <ESP8266mDNS.h>
+
+const char* DeviceName = "NIKHIL'S_ESP8266";
 
 // System Files
-const char* IGNORED_FOLDERS[] = {".delete", ".bin", "System Volume Information", ".boot"};
+const char* IGNORED_FOLDERS[] = {".delete", "System Volume Information", ".boot",".sys",".user",".log"};
 
 bool wifiEnabled = false; // Initially, WiFi is disabled
 bool haveInternet = false; // Checking if internet is available
@@ -45,8 +50,20 @@ bool haveInternet = false; // Checking if internet is available
 const char* SSID = "*"; // Default values
 const char* PASS = "*"; // Default values
 
+IPAddress staticIP(192, 168, 1, 100); // Define static IP address....
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress dns(8, 8, 8, 8); // DNS serverc
+
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 19800); // Universal Time -> IST(5:30)
+
+// POST DEFINED 
+const char* currentUserFirstName = "nikhil";
+const char* currentUserPass = "1234";
+
+String currentDir = "/.user/";
+
 
 void setup() {
   Serial.begin(9600);
@@ -54,17 +71,23 @@ void setup() {
   delay(1000);
   sdCardSetup();
   delay(1000);
-  ShowRootDir();
   time();
+  showHeap();
+  currentDIR();
 }
 
 void wifi(const char* name, const char* pass) {
   if (strcmp(SSID, "*") != 0 && strcmp(PASS, "*") != 0) {
     Serial.printf("Connecting to %s...\n", name);
+    WiFi.config(staticIP, gateway, subnet, dns); 
     WiFi.begin(name, pass);
+    int8_t connectingCounter = 0;
     while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
+      delay(1000);
       Serial.print(".");
+      connectingCounter++;
+      if(connectingCounter!=20)
+        break;
     }
     Serial.println("\nWiFi connected");
 
@@ -75,13 +98,14 @@ void wifi(const char* name, const char* pass) {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.println("Device is connected to the network");
       haveInternet = true;
+
     } else {
       Serial.println("Device is not connected to the network");
     }
     
   }
   else 
-    Serial.println("ErrorType[V001]: The ssid and pass are unavailable");
+    Serial.println("ErrorType[N002]: The ssid and pass are unavailable");
 } 
 
 void WifiHostpot(const char* ssid, const char* password) {
@@ -159,73 +183,30 @@ bool isIgnoredFolder(const char* folderName) {
   return false;
 }
 
-void listFiles(const char* path) {
-  File dir = SD.open(path);
-  while (true) {
-    File entry = dir.openNextFile();
-    if (!entry) break;
-    Serial.print("    ");
-    if (entry.isDirectory()) {
-      Serial.print("/ ");
-    }
-    Serial.println(entry.name());
-    entry.close();
-  }
-  dir.close();
-}
-
-void ShowRootDir() {
+void ls(const char* path){
   Serial.println("===================================================================");
-  File root = SD.open("/");
-  while (true) {
-    File entry = root.openNextFile();
-    if (!entry) break;
-    if (isIgnoredFolder(entry.name())) continue;
-    if (entry.isDirectory()) {
-      Serial.print("/");
-      Serial.println(entry.name());
-      listFiles(entry.name());
-    } else {
-      Serial.print("-- ");
-      Serial.println(entry.name());
-    }
-    entry.close();
-  }
-  root.close();
-}
-
-void openDir(const char* path) {
-  Serial.printf("===================================================================\n");
   File root = SD.open(path);
-  while (true) {
-    File entry = root.openNextFile();
-    if (!entry)
-      break;
+  while(File entry = root.openNextFile()){
+    if(!entry) break;
+    if(entry.isDirectory()){
+      Serial.print("  /");
+      Serial.print(entry.name());
+      Serial.println();
+    }
+    else{
+      unsigned long fileSizeInBytes = entry.size();
 
-    bool skip = false;
-    for (const char* keyword : IGNORED_FOLDERS) {
-      if (strstr(entry.name(), keyword)) {
-        skip = true;
-        break;
-      }
+      float fileSizeInMB = (float)fileSizeInBytes / (1024.0 * 1024.0);
+      Serial.print("  -");
+      Serial.print(entry.name());
+      Serial.printf("\t MB= %.3f",fileSizeInMB);
+      Serial.println();
     }
-    
-    if (skip){
-      skip = false;
-      continue;
-    }
-
-    if (entry.isDirectory()) {
-      Serial.print("/");
-      Serial.println(entry.name());
-    } else {
-      Serial.print("  FILE: ");
-      Serial.println(entry.name());
-    }
-    
-    entry.close();
+     
+     entry.close();
   }
   root.close();
+  currentDIR();
 }
 
 String extractFromEnd(const String& str, char delimiter) {
@@ -262,40 +243,78 @@ void readFile(const char* filename) {
 }
 
 int8_t createFile(const char* filename, const char* content = "") {
-  File file = SD.open(filename, FILE_WRITE); // Open the file in write mode
+  
+  bool permistion = true;
+  for (const char* keyword : IGNORED_FOLDERS) {
+      if (String(keyword).startsWith(String(filename))) {
+        permistion = false;
+        break;
+      }
+   }
 
-  if (file) {
-    file.println(content); // Write content to the file
-    file.close(); // Close the file
-    return 0;
-  } else {
-    return 1;
+  if (permistion) {
+
+    File file = SD.open(filename, FILE_WRITE); // Open the file in write mode
+
+    if (file) {
+      file.println(content); // Write content to the file
+      file.close(); // Close the file
+      return 0;
+    } else {
+      return 1;
+    }
+  
   }
+  Serial.println("PERMISTION DECLINED !!!!");
+  return 1;
 }
 
 bool revmdir(const char* path) {
-  if (!SD.exists(path)) {
-    Serial.println("Directory does not exist.");
+  Serial.printf("DELETE %s \n",path);
+  String deleteDir = "/.delete/";
+  bool permistion = true;
+  if(String("/.user/").equals(String(path))) permistion = false;
+            
+    // for (const char* keyword : IGNORED_FOLDERS) {
+    //     if (String(keyword).startsWith(String(path))) {
+    //       if("/.user/".equals(String(path)))
+    //         permistion = false;
+    //       break;
+    //     }
+    // }
+
+  if(permistion){
+    if (!SD.exists(path)) {
+        Serial.println("Directory does not exist.");
+        return false;
+      }
+
+    
+    // Create the .delete folder if it doesn't exist
+    if (!SD.exists(deleteDir)) {
+      SD.mkdir(deleteDir);
+    }
+
+    // Generate a unique file name within the .delete folder
+    String newDirName;
+    String fileName = String(path);
+    if(SD.open(path).isFile()){
+      int8_t dotIndex = fileName.lastIndexOf('.');
+      newDirName = deleteDir + (fileName.substring(0, dotIndex) + "_ESPDELETE." + fileName.substring(dotIndex));
+    }else{
+      newDirName = deleteDir + fileName + "_ESPDELETE";
+    }
+    // Rename the directory to move it to .delete folder
+    if (SD.rename(path, newDirName.c_str())) {
+      return true;
+    } else {
+      Serial.println("ErrorType[Me001]: Failed to delete folder.");
+      return false;
+    }
+  }
+  Serial.println("PERMISTION DECLINED !!!!");
     return false;
-  }
-
-  // Create the .delete folder if it doesn't exist
-  if (!SD.exists("/.delete")) {
-    SD.mkdir("/.delete");
-  }
-
-  // Generate a unique file name within the .delete folder
-  String newDirName = "/.delete/" + String(path) + "_ESPDELETE";
-
-  // Rename the directory to move it to .delete folder
-  if (SD.rename(path, newDirName.c_str())) {
-    return true;
-  } else {
-    Serial.println("Failed to move directory to .delete folder.");
-    return false;
-  }
 }
-
 void cmd(const char* received) {
   String command = received;
   command.trim(); // Remove leading and trailing whitespaces
@@ -306,48 +325,68 @@ void cmd(const char* received) {
   // Extract individual commands
   String primaryCommand = parts[0];
   String secondaryCommand = (parts->length() > 1) ? parts[1] : "";
-  String tertiaryCommand = (parts->length() > 2) ? parts[2] : "";
+  String tertiaryCommand = (parts->length() > 2) ? parts[2] : " ";
   String quaternaryCommand = (parts->length() > 3) ? parts[3] : "";
+  
 
-  Serial.printf("Debug: Primary Command: %s, Secondary Command: %s, Tertiary Command: %s\n", 
+  Serial.printf("Debug: root: %s, Secondary Command: %s, Tertiary Command: %s\n", 
                  primaryCommand.c_str(), secondaryCommand.c_str(), tertiaryCommand.c_str());
 
   if (primaryCommand.startsWith("cd")) {
-    openDir(secondaryCommand.c_str());
-  } else if (primaryCommand.startsWith("open")) {
-    readFile(secondaryCommand.c_str());
+    if (secondaryCommand == "..") {
+      goBackDirectory();
+    } else {
+      if(!SD.open(currentDir+secondaryCommand+"/").isFile()){
+        currentDir= currentDir+secondaryCommand+"/";
+        ls(currentDir.c_str());
+      }
+        
+    }
+  } 
+  else if (primaryCommand.startsWith("open")) {
+    readFile((currentDir+secondaryCommand).c_str());
   } else if (primaryCommand.startsWith("mkdir")) {
-    if (SD.mkdir(secondaryCommand.c_str())) {
+    if(secondaryCommand.charAt(0)=='/')
+      secondaryCommand= secondaryCommand+"/";
+    if (SD.mkdir((currentDir+secondaryCommand).c_str())) {
       Serial.printf("'%s' Created Successfully\n", extractFromEnd(secondaryCommand, '/').c_str());
+      
     } else {
       Serial.printf("'%s' Creation Failed\n", extractFromEnd(secondaryCommand, '/').c_str());
     }
-  } else if (primaryCommand.startsWith("root")) {
-    ShowRootDir();
+    // ShowRootDir(currentDir.c_str());
+  } else if (primaryCommand.startsWith("ls")) {
+    // ShowRootDir(currentDir.c_str());
+    ls(currentDir.c_str());
   } else if (primaryCommand.startsWith("mkfl")) {
       int8_t result = -1;
+      currentDir= currentDir+secondaryCommand;
       if (tertiaryCommand.isEmpty() || tertiaryCommand == " " || tertiaryCommand == "*") {
-        result = createFile(secondaryCommand.c_str());
+        result = createFile((currentDir+secondaryCommand).c_str());
       } else {
-        result = createFile(secondaryCommand.c_str(), tertiaryCommand.c_str());
+        result = createFile((currentDir+secondaryCommand).c_str(), tertiaryCommand.c_str());
       }
       if (result == 0) {
         Serial.println("File has been created");
+        currentDir= currentDir+secondaryCommand;
       } else {
         Serial.println("File creation failed");
       }
+      ls(currentDir.c_str());
+      // ShowRootDir(currentDir.c_str());
   } else if (primaryCommand.startsWith("wrt")) {
     if (createFile(secondaryCommand.c_str(), tertiaryCommand.c_str()) != 0) {
       Serial.println("Failed to write to file");
     }
   } else if (primaryCommand.startsWith("rmdir")) {
-    if (revmdir(secondaryCommand.c_str())) {
+    if (revmdir((currentDir+secondaryCommand+"/").c_str())) {
       Serial.println("Directory has been deleted");
     } else {
       Serial.println("Failed to delete directory");
     }
+    ls(currentDir.c_str());
   } else if (primaryCommand.startsWith("set")) {
-    if (primaryCommand.equals("D0")) {
+    if (secondaryCommand.equals("D0")) {
       if (tertiaryCommand.equalsIgnoreCase("high")) 
         digitalWrite(D0, HIGH);
       else if (tertiaryCommand.equalsIgnoreCase("low"))
@@ -356,7 +395,7 @@ void cmd(const char* received) {
         digitalWrite(D0, !digitalRead(D0));
       else 
         Serial.println("ErrorType : Invalid position for the GPIO PIN");
-    } else if (primaryCommand.equals("D1")) {
+    } else if (secondaryCommand.equals("D1")) {
       if (tertiaryCommand.equalsIgnoreCase("high")) 
         digitalWrite(D1, HIGH);
       else if (tertiaryCommand.equalsIgnoreCase("low"))
@@ -365,7 +404,7 @@ void cmd(const char* received) {
         digitalWrite(D1, !digitalRead(D1));
       else 
         Serial.println("ErrorType : Invalid position for the GPIO PIN");
-    } else if (primaryCommand.equals("D2")) {
+    } else if (secondaryCommand.equals("D2")) {
       if (tertiaryCommand.equalsIgnoreCase("high")) 
         digitalWrite(D2, HIGH);
       else if (tertiaryCommand.equalsIgnoreCase("low"))
@@ -374,15 +413,24 @@ void cmd(const char* received) {
         digitalWrite(D2, !digitalRead(D2));
       else 
         Serial.println("ErrorType : Invalid position for the GPIO PIN");
-    } else if (primaryCommand.equals("D3")) {
-      if (tertiaryCommand.equalsIgnoreCase("high")) 
-        digitalWrite(D3, HIGH);
-      else if (tertiaryCommand.equalsIgnoreCase("low"))
-        digitalWrite(D3, LOW);
-      else if (tertiaryCommand.equalsIgnoreCase("toggle"))
-        digitalWrite(D3, !digitalRead(D3));
-      else 
-        Serial.println("ErrorType : Invalid position for the GPIO PIN");
+    } else if (secondaryCommand.equals("D3")) {
+        if (tertiaryCommand.equalsIgnoreCase("high")) 
+          digitalWrite(D3, HIGH);
+        else if (tertiaryCommand.equalsIgnoreCase("low"))
+          digitalWrite(D3, LOW);
+        else if (tertiaryCommand.equalsIgnoreCase("toggle"))
+          digitalWrite(D3, !digitalRead(D3));
+        else 
+          Serial.println("ErrorType : Invalid position for the GPIO PIN");
+      }else if (secondaryCommand.equals("D4")) {
+        if (tertiaryCommand.equalsIgnoreCase("high")) 
+          digitalWrite(D4, HIGH);
+        else if (tertiaryCommand.equalsIgnoreCase("low"))
+          digitalWrite(D4, LOW);
+        else if (tertiaryCommand.equalsIgnoreCase("toggle"))
+          digitalWrite(D4, !digitalRead(D4));
+        else 
+          Serial.println("ErrorType : Invalid position for the GPIO PIN");
     } else {
       Serial.println("ErrorType : Invalid GPIO PIN. Only these pins are allowed to be changed: \n\t- D0 \n\t- D1 \n\t- D2 \n\t- D3");
     }
@@ -440,7 +488,7 @@ void cmd(const char* received) {
           Serial.println("Wi-Fi hotspot is already off");
         }
       } else if (tertiaryCommand.equals("on")) {
-        WifiHostpot("ESP8266_Network", "");
+        WifiHostpot(DeviceName, "");
       } else {
         Serial.println("ErrorType: Invalid Command for 'On' or 'Off' position");
       }
@@ -455,9 +503,58 @@ void cmd(const char* received) {
   delete[] parts;
 }
 
+void goBackDirectory() {
+  String currentPath = currentDir;
+  int8_t lastSlashIndex = currentPath.lastIndexOf('/');
+  if (lastSlashIndex != -1 || currentPath == "/.user/" ) {
+    // Extract the parent directory path
+    String parentPath = currentPath.substring(7, lastSlashIndex);
+    
+    // Check if the parent path is /.user/
+    if (parentPath == "") {
+      Serial.println("ErrorType: Cannot navigate back from /.user/ directory");
+      return;
+    }
+    
+    Serial.print("Parent Directory: ");
+    Serial.println(parentPath);
+    
+    // Set the current directory to the parent directory
+    currentDir = "/.user/" + parentPath;
+    
+    // Show the contents of the parent directory
+    ls(currentDir.c_str());
+    
+    // Update the current directory variable
+    currentDIR();
+  } else {
+    Serial.println("ErrorType: Already in root directory");
+  }
+}
+
+
+void currentDIR() {
+  Serial.print("[");
+  Serial.printf("root@%s : " ,currentUserFirstName);
+  Serial.print(currentDir);
+  Serial.println("]");
+}
+
 void time() {
   timeClient.update(); // Update the timeClient
   Serial.printf("-- Now Time > [%02d:%02d:%02d] \n", timeClient.getHours(), timeClient.getMinutes(), timeClient.getSeconds());
+}
+void showHeap(){
+  size_t freeHeap = ESP.getFreeHeap();
+  Serial.print("Free Heap Memory: ");
+  Serial.print(freeHeap);
+  Serial.println(" bytes");
+}
+void showStack() {
+  size_t freeStack = ESP.getFreeContStack();
+  Serial.print("Free Stack Memory: ");
+  Serial.print(freeStack);
+  Serial.println(" bytes");
 }
 
 void loop() {
@@ -471,10 +568,9 @@ void loop() {
         delay(1000);
         ESP.restart();
       } else if (userInput.equals("show heap")) {
-        size_t freeHeap = ESP.getFreeHeap();
-        Serial.print("Free Heap Memory: ");
-        Serial.print(freeHeap);
-        Serial.println(" bytes");
+        showHeap();
+      }else if (userInput.equals("show stack")) {
+        showStack();
       } else if (userInput.equals("show time")) {
         if(haveInternet) time(); 
         else Serial.println("ErrorType[N001] : No Internet ");
