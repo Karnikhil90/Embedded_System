@@ -31,18 +31,22 @@ Key functions include:
         But I'm in a trouble because of the stack and the 'cd' system command doest work properly
         @bug {main problem} goBackDirectory() have the problem of changing the working directory
         @bug sometime stack overflow & few other things 
+  Today I spend hours on goBackDirectory(){20-05-2024} : "But at the end nothing improved"
 
 */
 #include <SD.h>
 #include <ESP8266WiFi.h> // Include the ESP8266WiFi library for ESP8266
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include <string.h>
+#include <ctype.h>
 // #include <ESP8266mDNS.h>
+
 
 const char* DeviceName = "NIKHIL'S_ESP8266";
 
 // System Files
-const char* IGNORED_FOLDERS[] = {".delete", "System Volume Information", ".boot",".sys",".user",".log"};
+const char* IGNORED_FOLDERS[] = {".delete", "System Volume Information", ".boot",".sys",".user"};
 
 bool wifiEnabled = false; // Initially, WiFi is disabled
 bool haveInternet = false; // Checking if internet is available
@@ -50,7 +54,7 @@ bool haveInternet = false; // Checking if internet is available
 const char* SSID = "*"; // Default values
 const char* PASS = "*"; // Default values
 
-IPAddress staticIP(192, 168, 1, 100); // Define static IP address....
+IPAddress staticIP(192, 168, 1, 100); // Define your desired static IP address
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0);
 IPAddress dns(8, 8, 8, 8); // DNS serverc
@@ -62,7 +66,9 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", 19800); // Universal Time -> IST(5:
 const char* currentUserFirstName = "nikhil";
 const char* currentUserPass = "1234";
 
-String currentDir = "/.user/";
+String DEFAULT_DIR = "/.user/";
+String currentDir = DEFAULT_DIR +"desktop/";
+
 
 
 void setup() {
@@ -176,6 +182,7 @@ String* split(const String& str, char delimiter) {
   return parts;
 }
 
+
 bool isIgnoredFolder(const char* folderName) {
   for (int i = 0; i < sizeof(IGNORED_FOLDERS) / sizeof(IGNORED_FOLDERS[0]); ++i) {
     if (strcmp(folderName, IGNORED_FOLDERS[i]) == 0) return true;
@@ -184,6 +191,13 @@ bool isIgnoredFolder(const char* folderName) {
 }
 
 void ls(const char* path){
+  if(SD.open(path).available()==1)
+    {
+      Serial.println("DOEST EXIST ........");
+      return;
+    }
+
+
   Serial.println("===================================================================");
   File root = SD.open(path);
   while(File entry = root.openNextFile()){
@@ -336,7 +350,7 @@ void cmd(const char* received) {
     if (secondaryCommand == "..") {
       goBackDirectory();
     } else {
-      if(!SD.open(currentDir+secondaryCommand+"/").isFile()){
+      if(!SD.open(currentDir+secondaryCommand+"/").isFile() && SD.open(currentDir+secondaryCommand+"/").available()==0){
         currentDir= currentDir+secondaryCommand+"/";
         ls(currentDir.c_str());
       }
@@ -475,6 +489,7 @@ void cmd(const char* received) {
         SSID = tertiaryCommand.c_str();
         PASS = quaternaryCommand.c_str();
         wifi(SSID, PASS); // Pass both name and password
+        haveInternet = true;
       }
     } else if (secondaryCommand.equals("rssi")) {
       int32_t rssi = WiFi.RSSI();
@@ -498,38 +513,86 @@ void cmd(const char* received) {
   } else {
     Serial.println("ErrorType: Command not recognized");
   }
-
+  primaryCommand = "";
+  secondaryCommand = "";
+  tertiaryCommand ="";
+  quaternaryCommand ="";
   // Clean up memory
   delete[] parts;
 }
 
-void goBackDirectory() {
-  String currentPath = currentDir;
-  int8_t lastSlashIndex = currentPath.lastIndexOf('/');
-  if (lastSlashIndex != -1 || currentPath == "/.user/" ) {
-    // Extract the parent directory path
-    String parentPath = currentPath.substring(7, lastSlashIndex);
-    
-    // Check if the parent path is /.user/
-    if (parentPath == "") {
-      Serial.println("ErrorType: Cannot navigate back from /.user/ directory");
-      return;
-    }
-    
-    Serial.print("Parent Directory: ");
-    Serial.println(parentPath);
-    
-    // Set the current directory to the parent directory
-    currentDir = "/.user/" + parentPath;
-    
-    // Show the contents of the parent directory
-    ls(currentDir.c_str());
-    
-    // Update the current directory variable
-    currentDIR();
-  } else {
-    Serial.println("ErrorType: Already in root directory");
+String* split1(const String& str, char delimiter){
+  String r = "";
+  int counter = 0;
+
+  // Count the number of delimiters
+  for (short i = 0; i < str.length(); i++) {
+      if (str.charAt(i) == delimiter)
+          counter++;
   }
+
+  // Create an array to store parts
+  String* arr = new String[counter];
+  Serial.println("LEN =="+counter);
+  counter = 0;
+
+  // Split the string
+  for (short i = 0; i < str.length(); i++) {
+      if (str.charAt(i) != delimiter) {
+          r += str.charAt(i);
+      } else {
+          arr[counter] = r;
+          r = "";
+          counter++;
+      }
+  }
+
+  return arr;
+}
+
+void goBackDirectory() {
+
+  String currentPath = currentDir;
+  if(currentPath =="/.user/"){
+    Serial.println("ErrorType: Cannot navigate back from '/.user/' directory");
+    return;
+  }
+ 
+  int8_t lastSlashIndex = currentPath.lastIndexOf('/');
+  if (lastSlashIndex != -1 ) {
+   // Extract the parent directory path
+    String parentPath = currentPath.substring(7,lastSlashIndex)+"/";
+    String* parts = split1(parentPath, '/');
+    String cd = "";
+    int len = parts->length();
+    Serial.println("len= "+len);
+  //  for (int i = 0; i < len ; i++) {
+  //   Serial.println("DEBUG "+parts[i]);
+  //   cd += parts[i].c_str(); // Add the current part to the cd string
+  //   cd += "/"; // Add the '/' separator
+  //  }
+  //   Serial.println("cd= "+cd);
+
+for (int i = 0; i < len; i++) {
+    String dir = parts[i];
+    Serial.println(dir+"= name & len= "+dir.length());
+    // Check if directory name is not empty and consists of alphanumeric characters
+    if (!dir.isEmpty() && dir.length() > 0) {
+        cd += dir;
+        cd += "/";
+    }
+}
+
+
+    Serial.println("cd= "+cd);
+  delete[] parts;
+  Serial.print("Parent Directory: ");
+  Serial.println(parentPath);
+  currentDir ="";
+  currentDir = "/.user/" + cd;
+  currentDIR();
+    
+  } 
 }
 
 
