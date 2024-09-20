@@ -1,0 +1,15 @@
+{
+    "name": "embedded_system",
+    "version": "1.0.0",
+    "description": "This is my learning projects for arduino IDE and .ino codes.",
+    "scripts": {
+        "test": "echo \"No tests specified\" && exit 0"
+    },
+    "keywords": [
+        "arduino",
+        "ino",
+        "showcase"
+    ],
+    "author": "Nikhil Karmakar",
+    "license": "MIT"
+}
